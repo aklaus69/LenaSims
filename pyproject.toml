@@ -1,0 +1,27 @@
+[project]
+name = "multi-agent-chat"
+version = "0.1.0"
+description = "Modulares Multi-Agenten-Konversationssystem"
+requires-python = ">=3.10"
+dependencies = [
+    "pydantic>=2.0",
+    "httpx>=0.25",
+    "rich>=13.0",
+    "fastapi>=0.104",
+    "uvicorn>=0.24",
+    "jinja2>=3.1",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=7.4", "pytest-asyncio>=0.21", "ruff>=0.1"]
+
+[project.scripts]
+multi-agent-chat = "multi_agent_chat.cli:main"
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
