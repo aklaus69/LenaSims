@@ -1,9 +1,11 @@
 """
 Async Ollama client for local LLM inference.
+FORCED to use localhost:11434 - ignores environment variables.
 """
 
 from typing import Any
 import httpx
+import os
 
 from .models import Message
 
@@ -18,11 +20,14 @@ class OllamaError(Exception):
 
 
 class OllamaClient:
-    """Async client for Ollama API."""
+    """Async client for Ollama API - forced to localhost."""
+
+    # HARDCODED: Ignores env vars that might break things
+    DEFAULT_URL = "http://localhost:11434"
 
     def __init__(
         self,
-        base_url: str = "http://localhost:11434",
+        base_url: str | None = None,  # Changed: None means use DEFAULT_URL
         default_model: str = "llama3.2",
         timeout: float = 60.0,
     ) -> None:
@@ -30,11 +35,12 @@ class OllamaClient:
         Initialize the Ollama client.
 
         Args:
-            base_url: The base URL of the Ollama server
+            base_url: Ignored! Always uses localhost:11434
             default_model: The default model to use for generation
             timeout: Request timeout in seconds
         """
-        self.base_url = base_url.rstrip("/")
+        # FORCE localhost:11434 - never use env vars
+        self.base_url = self.DEFAULT_URL
         self.default_model = default_model
         self.timeout = timeout
         self._client = httpx.AsyncClient(timeout=timeout)
@@ -47,22 +53,7 @@ class OllamaClient:
         stream: bool = False,
         options: dict[str, Any] | None = None,
     ) -> str:
-        """
-        Generate a response from the Ollama API.
-
-        Args:
-            prompt: The prompt to send to the model
-            model: The model to use (defaults to default_model)
-            system: Optional system message
-            stream: Whether to stream the response
-            options: Additional options for the generation
-
-        Returns:
-            The generated response text
-
-        Raises:
-            OllamaError: If the API request fails
-        """
+        """Generate a response from the Ollama API."""
         model = model or self.default_model
         url = f"{self.base_url}/api/generate"
 
@@ -89,7 +80,7 @@ class OllamaClient:
                 status_code=e.response.status_code,
             )
         except httpx.RequestError as e:
-            raise OllamaError(f"Request failed: {e}")
+            raise OllamaError(f"Request failed (is Ollama running on localhost:11434?): {e}")
         except Exception as e:
             raise OllamaError(f"Unexpected error: {e}")
 
@@ -100,33 +91,17 @@ class OllamaClient:
         stream: bool = False,
         options: dict[str, Any] | None = None,
     ) -> str:
-        """
-        Chat with the Ollama API using conversation history.
-
-        Args:
-            messages: List of messages for context
-            model: The model to use (defaults to default_model)
-            stream: Whether to stream the response
-            options: Additional options for the generation
-
-        Returns:
-            The generated response text
-
-        Raises:
-            OllamaError: If the API request fails
-        """
+        """Chat with the Ollama API using conversation history."""
         model = model or self.default_model
         url = f"{self.base_url}/api/chat"
 
         # Convert Message objects to Ollama format
-        # Gemini-compatible: user, assistant (NOT model - that's OpenAI)
         ollama_messages = []
         for msg in messages:
             role = msg.role
             # Keep standard Ollama roles: user, assistant
             if role == "system":
-                # System als user umwandeln für Gemini
-                role = "user"
+                role = "user"  # Gemini compatibility
             
             ollama_messages.append({
                 "role": role,
@@ -154,20 +129,12 @@ class OllamaClient:
                 status_code=e.response.status_code,
             )
         except httpx.RequestError as e:
-            raise OllamaError(f"Request failed: {e}")
+            raise OllamaError(f"Request failed (is Ollama running on localhost:11434?): {e}")
         except Exception as e:
             raise OllamaError(f"Unexpected error: {e}")
 
     async def list_models(self) -> list[str]:
-        """
-        List available models from the Ollama server.
-
-        Returns:
-            List of model names
-
-        Raises:
-            OllamaError: If the API request fails
-        """
+        """List available models from the Ollama server."""
         url = f"{self.base_url}/api/tags"
 
         try:
@@ -181,17 +148,12 @@ class OllamaClient:
                 status_code=e.response.status_code,
             )
         except httpx.RequestError as e:
-            raise OllamaError(f"Request failed: {e}")
+            raise OllamaError(f"Request failed (is Ollama running on localhost:11434?): {e}")
         except Exception as e:
             raise OllamaError(f"Unexpected error: {e}")
 
     async def health_check(self) -> bool:
-        """
-        Check if the Ollama server is healthy.
-
-        Returns:
-            True if the server is reachable, False otherwise
-        """
+        """Check if the Ollama server is healthy."""
         try:
             await self.list_models()
             return True
